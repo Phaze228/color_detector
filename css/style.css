@@ -1,0 +1,49 @@
+/* General Dark Theme Styles */
+body {
+    background-color: #222222; /* Dark gray background */
+    color: #f0f0f0;           /* Light, off-white text */
+}
+
+/* Styling Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #e0e0e0;           /* Slightly lighter text for headings */
+}
+
+/* Styling Links */
+a {
+    color: #99ccff;           /* Light blue for links */
+}
+
+/* Styling Code Blocks (optional) */
+pre, code {
+    background-color: #333333; 
+    color: #e0e0e0;
+    padding: 10px; 
+    border-radius: 5px;
+}
+
+/* Styling Buttons (optional) */
+button {
+    background-color: #303030;
+    color: #f0f0f0;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+canvas {
+    border: 2px solid gray;
+}
+
+video {
+    border 2px solid white;
+}
+
+.color-replacer {
+    position: relative;
+    display: flex;
+    right: 50%;
+    align-items: center;
+}
+
