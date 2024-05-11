@@ -1,7 +1,7 @@
 
 class Detector {
    constructor(color, debug) {
-      this.color = color;
+      this.color = hex2rgb(color);
       this.DEBUG = (debug) ? true : false;
       this.AddedChartSize = 255;
       this.iterations = 10;
@@ -13,8 +13,8 @@ class Detector {
       this.color_selector_menu.value = this.color;
       this.color_selector.appendChild(this.color_selector_menu);
       this.color_selector_menu.addEventListener("change", (event) => {
-         this.color = event.target.value;
-         console.log("New color selected: ", this.color);
+         this.color = hex2rgb(event.target.value);
+         console.log("New color selected: ", this.color, RGB2HSV(this.color));
       });
 
 
@@ -23,7 +23,7 @@ class Detector {
       this.threshold.type = "range";
       this.threshold.min= 0;
       this.threshold.max= 255;
-      this.threshold.value = 25;
+      this.threshold.value = 30;
       this.thresh_select = document.getElementById("thresh-select");
       const header = document.createElement("h2");
       header.textContent = `Threshold Value = ${this.threshold.value}`
@@ -41,16 +41,20 @@ class Detector {
       }
    }
 
-   detect(image) {
+   detect(image, pixelIndex) {
       const desired_points = [];
-      const colorChoice = hex2rgb(this.color);
+      if (pixelIndex) {
+         this.color = getAverageColor(pixelIndex, image.data);
+         const hsv = RGB2HSV(this.color);
+         console.log(`HUE: ${hsv.h}, SATURATION: ${hsv.s}, VALUE: ${hsv.v}`);
+      }
+      const colorChoice = this.color;
       for (let i =0; i < image.data.length; i += 4) {
-         const r = image.data[i + 0]; 
-         const g = image.data[i + 1]; 
-         const b = image.data[i + 2]; 
-         const curPixel = {r:r, g:g, b:b};
-
-         if (!pixelNearColor(colorChoice, curPixel, parseInt(this.threshold.value))) continue;
+         const red = image.data[i + 0]; 
+         const green = image.data[i + 1]; 
+         const blue = image.data[i + 2]; 
+         const curPixel = {r:red, g:green, b:blue};
+         if (!pixelNearColorHSV(colorChoice, curPixel, parseInt(this.threshold.value))) continue;
          const pixelIndex = i/4;
          const x = pixelIndex % image.width;
          const y = Math.floor(pixelIndex / image.width);
@@ -83,7 +87,7 @@ class Detector {
    drawCenter(point, radius) {
       this.dbgContext.beginPath();
       this.dbgContext.arc(point.x, point.y, radius, 0, Math.PI * 2);
-      this.dbgContext.lineWidth = 5;
+      this.dbgContext.lineWidth = 10;
       this.dbgContext.stroke();
    }
 
@@ -108,21 +112,30 @@ class Detector {
    getAlpha(distance, threshold) {
       return 1 - Math.min(distance/threshold, 1);
    }
+
+   updateColor(data, pixelIndex) {
+      this.color = {r: data[pixelIndex], g: data[pixelIndex+1], b: data[pixelIndex+2]};
+      console.log(`Updated color: ${this.color.r},${this.color.g},${this.color.b}`);
+   }
 }
 
 
 
-const COLOR         = "black"; // red, blue, green
+const COLOR         = "#dfff00"; // YELLOW
 const videoID       = document.createElement("video"); 
 const canvasID      = document.getElementById("replication");
 const canvasContext = canvasID.getContext("2d", {willReadFrequently: true});
 const detector      = new Detector(COLOR, false);
 
-var replacement_color = "black";
+var replacement_color = "#dfff00"; // YELLOW
+var canvasPixelIndex = null;
 
 
 const getDistance = (p1,p2) => Math.hypot(p1.x - p2.x, p1.y-p2.y);
 const getDist2 = (p1,p2) =>  Math.pow(p1.x - p2.x,2) * Math.pow(p1.y-p2.y,2);
+
+const getIndex = (point) => (Math.floor(point.y) * canvasID.width + Math.floor(point.x)) * 4;
+
 
 const replacer = document.createElement("input");
 const color_container = document.getElementById('color-replacer');
@@ -137,9 +150,15 @@ replacer.addEventListener("change", (event) => {
    replacement_color = event.target.value;
 })
 
+canvasID.addEventListener("mousedown", (event) => {
+   console.log(`x:${event.x}, y:${event.y}`);
+   canvasPixelIndex = getSurroundingPixels({x:event.x, y:event.y}, canvasID.width, canvasID.height, 4);
+   console.log(`Averaging ${canvasPixelIndex.length} Pixels`);
+
+});
+
 
 renderVideo(videoID, canvasID, canvasContext);
-
 
 
 
@@ -158,16 +177,17 @@ function renderVideo(videoID, canvasID, canvasContext) {
 }
 
 
+
+
 function fixCanvasProperties(videoID, canvasID ) {
    canvasID.width = videoID.videoWidth;
    canvasID.height = videoID.videoHeight;
 }
 
 function loop(videoID, canvasID, canvasContext) {
-   // canvasContext.clearRect(0,0,canvasID.width, canvasID.height);
    canvasContext.drawImage(videoID, 0 ,0, canvasID.width, canvasID.height);
    const imageData = canvasContext.getImageData(0,0, canvasID.width, canvasID.height);
-   const centers = detector.detect(imageData);
+   const centers = detector.detect(imageData, canvasPixelIndex);
    if (centers && centers.length > 0) {
       canvasContext.fillStyle = replacement_color;
       for (const c of centers) {
@@ -176,6 +196,7 @@ function loop(videoID, canvasID, canvasContext) {
          }
       }
    }
+   canvasPixelIndex = null;
    requestAnimationFrame( () => loop(videoID, canvasID, canvasContext));
 };
 
@@ -269,8 +290,6 @@ function assignToClusters(distances) {
 }
 
 
-// getcolors
-//
 
 function hex2rgb(hexText) {
    const r = (parseInt(hexText.slice(1), 16) >> 16) & 0xFF;
@@ -292,4 +311,105 @@ function pixelNearColor(curColor, curPixel, threshold) {
    return false;
 
 
+}
+
+function pixelNearColorHSV(curColor, curPixel, threshold) {
+   const cur = RGB2HSV(curColor);
+   const pix = RGB2HSV(curPixel);
+   const VALUE_THRESH = 90;
+   const SAT_THRESH   = 70;
+   const hue_thresh_min = Math.max(0, (cur.h - threshold) % 360);
+   const hue_thresh_max = Math.min(359,(cur.h + threshold)) ;
+   const sat_thresh_max = Math.min(100, (cur.s + SAT_THRESH));
+   const sat_thresh_min = Math.max(0, (cur.s - SAT_THRESH));
+   const val_thresh_max = Math.min(100, (cur.v + VALUE_THRESH));
+   const val_thresh_min = Math.max(0, (cur.v - VALUE_THRESH));
+   if (
+         pix.h >= hue_thresh_min && pix.h <= hue_thresh_max &&
+         pix.s >= sat_thresh_min && pix.s <= sat_thresh_max &&
+         pix.v >= val_thresh_min && pix.v <= val_thresh_max
+   ) return true;
+   return false;
+}
+
+
+function drawCenter(canvasContext, point, radius) {
+   canvasContext.beginPath();
+   canvasContext.arc(point.x, point.y, radius, 0, Math.PI * 2);
+   canvasContext.lineWidth = 10;
+   canvasContext.stroke();
+}
+
+
+function getSurroundingPixels(point, maxWidth, maxHeight, layers) {
+   const pixelPoints = new Array();
+   for (let dx = -layers; dx <= layers; dx++) {
+      const x = point.x + dx;
+      if (x > maxWidth || x < 0) continue;
+
+      for (let dy = -layers; dy <= layers; dy++ ) {
+         const y = point.y + dy;
+         if (y > maxHeight || y < 0) continue;
+         pixelPoints.push({x:x, y:y});
+      }
+   }
+   return pixelPoints;
+}
+
+
+function getAverageColor2(pixelPoints, imageData) {
+   const color = {r:0, b:0, g:0};
+   for (const point of pixelPoints) {
+      const index = getIndex(point); 
+      color.r += Math.pow(imageData[index], 2);
+      color.g += Math.pow(imageData[index + 1],2);
+      color.b += Math.pow(imageData[index + 2],2);
+   }
+   color.r = Math.sqrt(color.r/ pixelPoints.length) | 0;
+   color.g = Math.sqrt(color.g/ pixelPoints.length) | 0;
+   color.b = Math.sqrt(color.b/ pixelPoints.length) | 0;
+   return color;
+}
+
+
+function getAverageColor(pixelPoints, imageData) {
+   const color = {r:0, b:0, g:0};
+   for (const point of pixelPoints) {
+      const index = getIndex(point); 
+      color.r += imageData[index], 2;
+      color.g += imageData[index + 1];
+      color.b += imageData[index + 2];
+   }
+   color.r = color.r/ pixelPoints.length | 0;
+   color.g = color.g/ pixelPoints.length | 0;
+   color.b = color.b/ pixelPoints.length | 0;
+   return color;
+}
+
+function RGB2HSV(rgb) {
+   const r = rgb.r/255;
+   const g = rgb.g/255;
+   const b = rgb.b/255;
+   const cmax = Math.max(r,g,b);
+   const cmin = Math.min(r,g,b);
+   const colorDiff = cmax-cmin;
+   var h, s, v;
+   if       (cmax == cmin) {
+      h = 0;
+   } else if (cmax == r) {
+      h = (60 * ( (g-b) / colorDiff) + 360)  % 360;
+   } else if (cmax == g) {
+      h = (60 * ( (b-r) / colorDiff) + 120)  % 360;
+   } else if (cmax == b) {
+      h = (60 * ( (r-g) / colorDiff) + 240)  % 360;
+   }
+   if (cmax == 0) {
+      s = 0;
+   } else {
+      s = (colorDiff / cmax) * 100;
+   }
+
+   v = cmax * 100;
+
+   return {h:h, s:s, v:v};
 }
