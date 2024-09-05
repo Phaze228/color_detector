@@ -1,0 +1,27 @@
+.{
+    .name = "zm-opengl",
+
+    .version = "0.0.0",
+
+    .minimum_zig_version = "0.12.0",
+
+    .dependencies = .{ .zm = .{
+        .url = "git+https://github.com/griush/zm#cb45317e26100aee505413be717da617f067911e",
+        .hash = "12202037109a9936d8a3c19b2c9b4bbd15985e15a43ab01732ef2611bf1b924f5845",
+    }, .zig_glfw = .{
+        .url = "git+https://github.com/griush/zig-glfw#4086ec77f2180e285a260412fb4f10605dbb1625",
+        .hash = "1220804380562d8b9b9996d6d8aded88ef887310053cd09d0015af7e65778d5b8d30",
+    }, .zigglgen = .{
+        .url = "https://github.com/castholm/zigglgen/releases/download/v0.2.3/zigglgen.tar.gz",
+        .hash = "1220f4188a5e1bdbb15fd50e9ea322c0721384eeba9bc077e4179b0b0eeaa7fe4ad9",
+    }, .zig_stb_image = .{
+        .url = "https://github.com/JacobCrabill/zig-stb-image/archive/88cf7d7b42a279183abf3ac8bc1e7bec3c7e5906.tar.gz",
+        .hash = "1220be50d5bf071aed75e8bc0119661d520ed20f2c47b140e5871f3839a00f9f79a3",
+    } },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

@@ -1,0 +1,11 @@
+pub extern fn compileLinkProgram(vs: [*]const u8, vs_len: usize, fragment_shader: [*]const u8, fs_len: usize) i32;
+pub extern fn logW(string: [*]const u8, len: usize) void;
+pub extern fn bind2DFloat32Data(data: [*]const f32, data_len: usize) i32;
+pub extern fn glClearColor(r: f32, g: f32, b: f32, a: f32) void;
+pub extern fn glClear(mask: i32) void;
+pub extern fn glUseProgram(program: i32) void;
+pub extern fn glBindVertexArray(vao: i32) void;
+pub extern fn glDrawArrays(mode: i32, first: i32, last: i32) void;
+pub extern fn glGetUniformLoc(porgram: i32, name: [*]const u8, name_len: usize) i32;
+pub extern fn glUniform1f(loc: i32, val: f32) void;
+pub extern fn glSetUniformBufferObject(buffer: [*]f32, buf_length: usize) void;
